@@ -87,7 +87,10 @@ void parseSPS(const uint8_t *addr, uint32_t &offset) {
                                                        bit_offset,
                                                        "qpprime_y_zero_transform_bypass_flag");
     ret.seq_scaling_matrix_present_flag = readBit(addr, offset, bit_offset, "seq_scaling_matrix_present_flag");
-    // TODO if (ret.seq_scaling_matrix_present_flag)...
+    if (ret.seq_scaling_matrix_present_flag) {
+      // TODO if (ret.seq_scaling_matrix_present_flag)...
+      cerr << "WARNING: UNIMPLEMENTED CODE REACHED\n";
+    }
   }
   ret.log2_max_frame_num_minus4 = decodeUnsignedExpGolomb(addr, offset, bit_offset, "log2_max_frame_num_minus4");
   ret.pic_order_cnt_type = decodeUnsignedExpGolomb(addr, offset, bit_offset, "pic_order_cnt_type");
@@ -98,6 +101,7 @@ void parseSPS(const uint8_t *addr, uint32_t &offset) {
                                                                     "log2_max_pic_order_cnt_lsb_minus4");
   } else if (ret.pic_order_cnt_type == 1) {
     // TODO
+    cerr << "WARNING: UNIMPLEMENTED CODE REACHED\n";
   }
   ret.max_num_ref_frames = decodeUnsignedExpGolomb(addr, offset, bit_offset, "max_num_ref_frames");
   ret.gaps_in_frame_num_value_allowed_flag = readBit(addr, offset, bit_offset, "gaps_in_frame_num_value_allowed_flag");
@@ -189,6 +193,9 @@ void parsePPS(const uint8_t *addr, uint32_t &offset) {
 }
 
 void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
+#if defined(DEBUG) || defined(INFO)
+  uint32_t offset_start = offset;
+#endif
 #ifdef DEBUG
   cout << "    Slice\n";
 #endif
@@ -261,6 +268,7 @@ void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
   }
   if (curr_nal_unit.nal_unit_type == 20 || curr_nal_unit.nal_unit_type == 21) {
     // TODO ref_pic_list_mvc_modification()
+    cerr << "WARNING: UNIMPLEMENTED CODE REACHED\n";
   } else {
     // ref_pic_list_modification()
     if (ret.slice_type % 5 != 2 && ret.slice_type % 5 != 4) {
@@ -411,7 +419,7 @@ void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
   }
   slices.push_back(ret);
 #if defined(DEBUG) || defined(INFO)
-  cout << "    Slice header length: " << offset << " bytes " << +bit_offset << " bits" << "\n";
+  cout << "    Slice header length: " << offset - offset_start << " bytes " << +bit_offset << " bits" << "\n";
   printf("    Slice data @ %X+%u\n", offset, bit_offset);
 #endif
 }
@@ -438,7 +446,7 @@ int32_t parseMP4Box(const uint8_t *addr, uint32_t &offset) {
 #endif
   if (ret.size <= 1) {
     //TODO
-    cout << "largesize or eof\n";
+    cerr << "largesize or eof\n";
     return -1;
   }
   if (ret.name != "mdat") {
