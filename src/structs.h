@@ -14,6 +14,7 @@
  */
 typedef struct {
   const uint8_t *location;
+  uint32_t location_relative;
   uint32_t size;
   std::string name;
 } MP4Box;
@@ -31,9 +32,11 @@ typedef struct {
 typedef struct {
   // IdrPicFlag = ( ( nal_unit_type = = 5 ) ? 1 : 0 )
   const uint8_t *location;
+  uint32_t location_relative;
   uint32_t size;
   uint8_t nal_ref_idc;
   uint8_t nal_unit_type;
+  uint32_t slice_header_size;
 } NALUnit;
 
 /**

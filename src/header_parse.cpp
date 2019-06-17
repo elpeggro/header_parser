@@ -13,11 +13,11 @@
 #include <fstream>
 #include <iomanip>
 #include <fstream>
-#include <string>
 #include <cmath>
 #include "helper_functions.h"
 #include "structs.h"
 #include "defines.h"
+#include "XmlHandler.h"
 
 using std::cout;
 using std::cerr;
@@ -38,6 +38,7 @@ void parseNALUnit(const uint8_t *addr, uint32_t &offset) {
   uint8_t bit_offset = 0;
   NALUnit ret{};
   ret.location = addr + offset;
+  ret.location_relative = offset;
   // We manually add 4 because the size in the bytestream is excluding itself.
   ret.size = readUnsignedInt32(addr, offset, bit_offset, "size") + 4;
 #ifdef INFO
@@ -193,9 +194,7 @@ void parsePPS(const uint8_t *addr, uint32_t &offset) {
 }
 
 void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
-#if defined(DEBUG) || defined(INFO)
   uint32_t offset_start = offset;
-#endif
 #ifdef DEBUG
   cout << "    Slice\n";
 #endif
@@ -418,6 +417,12 @@ void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
     ret.slice_group_change_cycle = readNBits(addr, offset, bit_offset, length, "slice_group_change_cycle");
   }
   slices.push_back(ret);
+  // Round slice header size to full bytes.
+  if (bit_offset > 0) {
+    curr_nal_unit.slice_header_size = (offset - offset_start) + 1;
+  } else {
+    curr_nal_unit.slice_header_size = offset - offset_start;
+  }
 #if defined(DEBUG) || defined(INFO)
   cout << "    Slice header length: " << offset - offset_start << " bytes " << +bit_offset << " bits" << "\n";
   printf("    Slice data @ %X+%u\n", offset, bit_offset);
@@ -431,6 +436,7 @@ int32_t parseMP4Box(const uint8_t *addr, uint32_t &offset) {
   uint8_t bit_offset = 0;
   MP4Box ret{};
   ret.location = addr + offset;
+  ret.location_relative = offset;
   ret.size = readUnsignedInt32(addr, offset, bit_offset, "size");
 #ifdef DEBUG
   // Need to print this manually, because we would print the integer representation, which is not useful.
@@ -462,10 +468,103 @@ int32_t parseMP4Box(const uint8_t *addr, uint32_t &offset) {
   return 0;
 }
 
+void flushMPDFile(const std::string &file_name, std::string video_name) {
+  // Get filename from path
+  size_t last_slash = video_name.find_last_of('/');
+  if (last_slash != video_name.size()) {
+    video_name = video_name.substr(last_slash + 1, video_name.size() - last_slash);
+  }
+  XmlHandler xml_handler;
+  if (xml_handler.setFile(file_name, video_name) < 0) {
+    return;
+  }
+  // Skip MP4 headers that are already contained in the Initialization segment of the mpd file.
+  uint32_t curr_segment_start = xml_handler.getRangeStart();
+  auto mp4box_it = mp4_boxes.begin();
+  while (mp4box_it != mp4_boxes.end() && mp4box_it->location_relative < curr_segment_start) {
+#ifdef INFO
+    std::cout << "Skipping init header " << mp4box_it->name << "\n";
+#endif
+    mp4box_it++;
+  }
+  auto nal_unit_it = nal_units.begin();
+  // Segments
+  while (mp4box_it != mp4_boxes.end()) {
+    // MP4 headers
+    curr_segment_start = xml_handler.getRangeStart();
+    uint32_t curr_segment_end = xml_handler.getRangeEnd();
+    uint32_t header_block_start = mp4box_it->location_relative;
+    uint32_t current_block_start = mp4box_it->location_relative;
+    uint32_t expected_next_block = current_block_start + mp4box_it->size;
+    // Iterate until we find a mdat box or a gap in the byte stream.
+    while (mp4box_it != mp4_boxes.end() && mp4box_it->location_relative < curr_segment_end) {
+      mp4box_it++;
+      if (mp4box_it->location_relative != expected_next_block || mp4box_it->name == "mdat") {
+        break;
+      }
+      current_block_start = mp4box_it->location_relative;
+      expected_next_block = current_block_start + mp4box_it->size;
+    }
+    if (mp4box_it->name != "mdat") {
+      std::cerr << "Gap in bytestream before mdat. Should not happen.\n";
+      return;
+    }
+    // If we reach this point, mp4box_it points to the current mdat box that contains H.264 data. Add the 8 byte header
+    // to the size, set the iterator to the next MP4 box (in the next segment) and start iterating over the H.264
+    // headers.
+    uint32_t header_block_end = mp4box_it->location_relative + 8;
+    xml_handler.addAttribute("mp4Header",
+                             std::to_string(header_block_start - curr_segment_start) + "-"
+                                 + std::to_string(header_block_end - curr_segment_start - 1));
+    mp4box_it++;
+
+    // H.264 headers
+    std::string range_list;
+    // We need to nested while loops, because we multiple NAL units in a single MP4 segment.
+    while (nal_unit_it != nal_units.end() && nal_unit_it->location_relative < curr_segment_end) {
+      header_block_start = nal_unit_it->location_relative;
+      current_block_start = nal_unit_it->location_relative;
+      expected_next_block = current_block_start + nal_unit_it->size;
+      // Iterate until we find a NAL unit containing a slice or a gap in the bytestream.
+      while (nal_unit_it != nal_units.end()) {
+        if (nal_unit_it->nal_unit_type == 1 || nal_unit_it->nal_unit_type == 5) {
+          // Slice. Add the 5 byte NAL unit header to the slice header size. Slice header size is byte aligned (by us).
+          header_block_end = nal_unit_it->location_relative + 5 + nal_unit_it->slice_header_size;
+          nal_unit_it++;
+          break;
+        } else {
+          header_block_end = expected_next_block;
+          nal_unit_it++;
+          if (nal_unit_it->location_relative != expected_next_block) {
+            // This can happen, e.g., with the PPS that is at the end of the segment.
+            break;
+          }
+          current_block_start = nal_unit_it->location_relative;
+          expected_next_block = current_block_start + nal_unit_it->size;
+        }
+      }
+      // After this loop, nal_unit_it points to the next NAL unit, either in the same segment, i.e., we skip slice data
+      // or in the next segment, i.e., the current segment is done and we need to start iterating over MP4 headers
+      // again.
+      range_list += std::to_string(header_block_start - curr_segment_start) + "-"
+          + std::to_string(header_block_end - curr_segment_start - 1) + ",";
+    }
+    // Strip the last comma from the ranges string.
+    range_list = range_list.substr(0, range_list.size() - 1);
+    xml_handler.addAttribute("h264Header", range_list);
+    xml_handler.nextSegment();
+  }
+  xml_handler.save();
+}
+
 int main(int32_t argc, char **argv) {
+  std::string mpd_file;
   if (argc < 3) {
-    cout << "usage: " << argv[0] << " <video> <csv-file>" << endl;
+    cout << "usage: " << argv[0] << " <video> <csv-file> [MPD-File]" << endl;
     return 1;
+  }
+  if (argc == 4) {
+    mpd_file = argv[3];
   }
   csv_file.open(argv[2], std::ofstream::trunc);
   if (csv_file.fail()) {
@@ -538,8 +637,13 @@ int main(int32_t argc, char **argv) {
     cerr << "csv-file close: " << strerror(errno) << "\n";
   }
 
+
   if (munmap(file_mmap, file_size) < 0) {
     cerr << "munmap: " << strerror(errno) << "\n";
+  }
+
+  if (!mpd_file.empty()) {
+    flushMPDFile(mpd_file, argv[1]);
   }
   return 0;
 }
