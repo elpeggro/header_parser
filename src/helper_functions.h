@@ -23,7 +23,7 @@ uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
  * @param addr Base address.
  * @param offset Byte offset from base address.
  * @param bit_offset Bit offset inside byte.
- * @param message The parameter name that is printed together with the read value.
+ * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
 uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
@@ -51,7 +51,7 @@ uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, u
  * @param offset Byte offset from base address.
  * @param bit_offset Bit offset inside byte.
  * @param n Number of bits to read.
- * @param message The parameter name that is printed together with the read value.
+ * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
 uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, uint32_t n, const std::string &message);
@@ -71,7 +71,7 @@ uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
  * @param addr Base address.
  * @param offset Byte offset from base address.
  * @param bit_offset Bit offset inside byte.
- * @param message The parameter name that is printed together with the read value.
+ * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
 uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
@@ -92,7 +92,7 @@ uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_o
  * @param addr Base address.
  * @param offset Byte offset from base address.
  * @param bit_offset Bit offset inside byte.
- * @param message The parameter name that is printed together with the read value.
+ * @param message Parameter name that is printed together with the read value.
  * @return The read value as an unsigned integer.
  */
 uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
@@ -118,7 +118,7 @@ uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t 
  * @param addr Base address.
  * @param offset Byte offset from base address.
  * @param bit_offset Bit offset inside byte.
- * @param message The parameter name that is printed together with the read value.
+ * @param message Parameter name that is printed together with the read value.
  * @return The code number.
  */
 uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
@@ -147,7 +147,7 @@ int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bi
  * @param addr Base address.
  * @param offset Byte offset from base address.
  * @param bit_offset Bit offset inside byte.
- * @param message The parameter name that is printed together with the read value.
+ * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
 int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
@@ -163,30 +163,30 @@ int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bi
  *
  *    – Otherwise (separate_colour_plane_flag is equal to 1), ChromaArrayType is set equal to 0"
  *
- * @param sps The SPS from which to derive the value.
- * @return The value of the variable.
+ * @param sps SPS from which to derive the value.
+ * @return Value of the variable.
  */
 uint32_t getChromaArrayType(const SPS &sps);
 /**
  * Returns the string representation of a NAL unit type code as specified in ISO/IEC 14496-10:2014 Table 7-1.
  *
- * @param nal_unit_type The NAL unit type code.
- * @return The string representation.
+ * @param nal_unit_type NAL unit type code.
+ * @return String representation.
  */
 std::string getNALUnitTypeString(uint8_t nal_unit_type);
 /**
  * Returns the string representation of a slice type code as specified in ISO/IEC 14496-10:2014 Table 7-6.
  *
- * @param slice_type The slice type code.
- * @return The string representation.
+ * @param slice_type Slice type code.
+ * @return String representation.
  */
 std::string getSliceTypeString(uint8_t slice_type);
 /**
  * Interprets the four byte integer as a four character string and returns the value. Used to get the name of a MP4 box
  * as a string representation.
  *
- * @param type The integer representation of the name.
- * @return The string representation.
+ * @param type Integer representation of the name.
+ * @return String representation.
  */
 std::string getNameString(uint32_t type);
 
