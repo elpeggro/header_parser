@@ -209,6 +209,7 @@ void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
   ret.first_mb_in_slice = ptr + mb_address;
   ret.slice_type = decodeUnsignedExpGolomb(addr, offset, bit_offset, "slice_type");
   std::string slice_type_string = getSliceTypeString(ret.slice_type);
+  curr_nal_unit.slice_type = slice_type_string.c_str()[0];
 #ifdef INFO
   cout << "    " << slice_type_string << " Slice\n";
 #endif
@@ -528,6 +529,9 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
       // Iterate until we find a NAL unit containing a slice or a gap in the bytestream.
       while (nal_unit_it != nal_units.end()) {
         if (nal_unit_it->nal_unit_type == 1 || nal_unit_it->nal_unit_type == 5) {
+          if (nal_unit_it->slice_type == 'I') {
+            xml_handler.addAttribute("iEnd", std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1));
+          }
           // Slice. Add the 5 byte NAL unit header to the slice header size. Slice header size is byte aligned (by us).
           header_block_end = nal_unit_it->location_relative + 5 + nal_unit_it->slice_header_size;
           nal_unit_it++;
