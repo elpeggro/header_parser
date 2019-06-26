@@ -8,7 +8,7 @@ make
 
 # Use
 ```
-./header_parser <video> <csv-file>
+./header_parser <video> <csv-file> [MPD-file]
 ```
 
 # Debug Output
