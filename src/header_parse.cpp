@@ -561,28 +561,77 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
   xml_handler.save();
 }
 
+void flushRanges(const std::string &video_name) {
+  std::ofstream range_file;
+  range_file.open(video_name.substr(0, video_name.length() - 3) + "-ranges.csv", std::ofstream::trunc);
+  if (range_file.fail()) {
+    cerr << "Failed to open range file: " << strerror(errno) << "\n";
+    return;
+  }
+  range_file << "category,type,start,end\n";
+  for (auto &mp4_box : mp4_boxes) {
+    range_file << "mp4," << mp4_box.name << "," << mp4_box.location_relative << ","
+               << mp4_box.location_relative + mp4_box.size - 1 << "\n";
+  }
+  for (auto &nal_unit : nal_units) {
+    range_file << "h264,";
+    if (nal_unit.nal_unit_type == 0 || nal_unit.nal_unit_type > 5) {
+      range_file << getShortNALUnitTypeString(nal_unit.nal_unit_type) << "," << nal_unit.location_relative << ","
+                 << nal_unit.location_relative + nal_unit.size - 1 << "\n";
+    } else if (nal_unit.nal_unit_type > 1 && nal_unit.nal_unit_type < 5) {
+      cerr << "Slice partitions are not supported.\n";
+      range_file << getShortNALUnitTypeString(nal_unit.nal_unit_type) << "," << nal_unit.location_relative << ","
+                 << nal_unit.location_relative + nal_unit.size - 1 << "\n";
+    } else {
+      uint32_t header_end = nal_unit.location_relative + nal_unit.slice_header_size + 4;
+      range_file << nal_unit.slice_type << "_header," << nal_unit.location_relative << "," << header_end << "\n";
+      range_file << "h264," << nal_unit.slice_type << "_content," << header_end + 1 << ","
+                 << nal_unit.location_relative + nal_unit.size - 1 << "\n";
+    }
+  }
+  range_file.close();
+}
+
 int main(int32_t argc, char **argv) {
-  std::string mpd_file;
-  if (argc < 3) {
-    cout << "usage: " << argv[0] << " <video> <csv-file> [MPD-File]" << endl;
+  std::string csv_file_path;
+  std::string mpd_file_path;
+  bool flush_ranges = false;
+  std::string csv_parameter = "--csv";
+  std::string mpd_parameter = "--mpd";
+  std::string ranges_parameter = "--ranges";
+  if (argc < 2) {
+    cout << "usage: " << argv[0] << " <video> [--csv <csv-file>] [--mpd <MPD-File>] [--ranges]" << endl;
     return 1;
   }
-  if (argc == 4) {
-    mpd_file = argv[3];
+  std::string video_file_path = argv[1];
+  for (int32_t i = 2; i < argc; i++) {
+    std::string next_arg = argv[i];
+    if (!next_arg.compare(0, next_arg.size(), csv_parameter) && i + 1 < argc) {
+      csv_file_path = argv[i + 1];
+      i++;
+    } else if (!next_arg.compare(0, next_arg.size(), mpd_parameter) && i + 1 < argc) {
+      mpd_file_path = argv[i + 1];
+      i++;
+    } else if (!next_arg.compare(0, next_arg.size(), ranges_parameter)) {
+      flush_ranges = true;
+    } else {
+      cerr << "Unknown parameter or missing argument: " << argv[i] << "\n";
+      return 1;
+    }
   }
-  csv_file.open(argv[2], std::ofstream::trunc);
+  csv_file.open(csv_file_path, std::ofstream::trunc);
   if (csv_file.fail()) {
     cerr << "failed to open csv-file: " << strerror(errno) << "\n";
     return 1;
   }
   csv_file << "type,num,size\n";
   struct stat st{};
-  if (stat(argv[1], &st) < 0) {
+  if (stat(video_file_path.c_str(), &st) < 0) {
     cerr << "error while getting file size: " << strerror(errno) << "\n";
     return 1;
   }
   size_t file_size = st.st_size;
-  int32_t file_fd = open(argv[1], O_RDONLY);
+  int32_t file_fd = open(video_file_path.c_str(), O_RDONLY);
   if (file_fd < 0) {
     cerr << "could not open fd: " << strerror(errno) << "\n";
     return 1;
@@ -641,13 +690,15 @@ int main(int32_t argc, char **argv) {
     cerr << "csv-file close: " << strerror(errno) << "\n";
   }
 
-
   if (munmap(file_mmap, file_size) < 0) {
     cerr << "munmap: " << strerror(errno) << "\n";
   }
 
-  if (!mpd_file.empty()) {
-    flushMPDFile(mpd_file, argv[1]);
+  if (!mpd_file_path.empty()) {
+    flushMPDFile(mpd_file_path, video_file_path);
+  }
+  if (flush_ranges) {
+    flushRanges(video_file_path);
   }
   return 0;
 }

@@ -174,6 +174,7 @@ uint32_t getChromaArrayType(const SPS &sps);
  * @return String representation.
  */
 std::string getNALUnitTypeString(uint8_t nal_unit_type);
+std::string getShortNALUnitTypeString(uint8_t nal_unit_type);
 /**
  * Returns the string representation of a slice type code as specified in ISO/IEC 14496-10:2014 Table 7-6.
  *

@@ -8,9 +8,8 @@ make
 
 # Use
 ```
-./header_parser <video> <csv-file> [MPD-file]
+./header_parser <video> [--csv <csv-file>] [--mpd <MPD-File>] [--ranges]
 ```
-
 # Debug Output
 By default, nothing is printed to stdout. If you want to get basic
 information, define the `INFO` flag in defines.h. For detailed debug

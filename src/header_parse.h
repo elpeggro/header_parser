@@ -49,4 +49,10 @@ int32_t parseMP4Box(const uint8_t *addr, uint32_t &offset);
  * @param video_name Video name that should be searched for in the MPD's BaseURL element.
  */
 void flushMPDFile(const std::string &file_name, std::string video_name);
+
+/**
+ * Flushes the structure of the bytestream into a CSV file. The file is created at the same location as the video.
+ * @param video_name Path to the video file
+ */
+void flushRanges(const std::string &video_name);
 #endif //HEADER_PARSE_H_

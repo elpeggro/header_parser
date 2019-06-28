@@ -203,6 +203,41 @@ std::string getNALUnitTypeString(uint8_t nal_unit_type) {
   }
 }
 
+std::string getShortNALUnitTypeString(uint8_t nal_unit_type) {
+  switch (nal_unit_type) {
+    case 0: {
+      return "U";
+    }
+    case 1: {
+      return "nIDR";
+    }
+    case 2: {
+      return "pA";
+    }
+    case 3: {
+      return "pB";
+    }
+    case 4: {
+      return "pC";
+    }
+    case 5: {
+      return "IDR";
+    }
+    case 6: {
+      return "SEI";
+    }
+    case 7: {
+      return "SPS";
+    }
+    case 8: {
+      return "PPS";
+    }
+    default: {
+      return "DUNNO LOL";
+    }
+  }
+}
+
 std::string getSliceTypeString(uint8_t slice_type) {
   /*
    * From the standard: When slice_type has a value in the range 5..9, it is a requirement of bitstream conformance that
