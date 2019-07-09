@@ -51,7 +51,8 @@ void parseNALUnit(const uint8_t *addr, uint32_t &offset) {
   ret.nal_ref_idc = readNBits(addr, offset, bit_offset, 2, "nal_ref_idc");
   ret.nal_unit_type = readNBits(addr, offset, bit_offset, 5, "nal_unit_type");
   nal_units.push_back(ret);
-};
+}
+
 void parseSPS(const uint8_t *addr, uint32_t &offset) {
 #if defined(DEBUG) || defined(INFO)
   cout << "    SPS\n";
@@ -619,12 +620,15 @@ int main(int32_t argc, char **argv) {
       return 1;
     }
   }
-  csv_file.open(csv_file_path, std::ofstream::trunc);
-  if (csv_file.fail()) {
-    cerr << "failed to open csv-file: " << strerror(errno) << "\n";
-    return 1;
+  if (!csv_file_path.empty()) {
+
+    csv_file.open(csv_file_path, std::ofstream::trunc);
+    if (csv_file.fail()) {
+      cerr << "failed to open csv-file: " << strerror(errno) << "\n";
+      return 1;
+    }
+    csv_file << "type,num,size\n";
   }
-  csv_file << "type,num,size\n";
   struct stat st{};
   if (stat(video_file_path.c_str(), &st) < 0) {
     cerr << "error while getting file size: " << strerror(errno) << "\n";
@@ -664,18 +668,24 @@ int main(int32_t argc, char **argv) {
         // macro blocks of a slice.
         uint32_t after_offset = offset + last_nal.size - 5;
         if (last_nal.nal_unit_type == 7) {
-          csv_file << "H,0," << last_nal.size << "\n";
+          if (!csv_file_path.empty()) {
+            csv_file << "H,0," << last_nal.size << "\n";
+          }
           parseSPS(file_mmap, offset);
 #ifdef DEBUG
           cout << "Skipping " << after_offset - offset << " bytes of vui_parameters()\n";
 #endif
         } else if (last_nal.nal_unit_type == 8) {
-          csv_file << "H,0," << last_nal.size << "\n";
+          if (!csv_file_path.empty()) {
+            csv_file << "H,0," << last_nal.size << "\n";
+          }
           parsePPS(file_mmap, offset);
         } else if (last_nal.nal_unit_type == 1 || last_nal.nal_unit_type == 5) {
           parseSliceHeader(file_mmap, offset);
         } else {
-          csv_file << "H,0," << last_nal.size << "\n";
+          if (!csv_file_path.empty()) {
+            csv_file << "H,0," << last_nal.size << "\n";
+          }
 #if defined(DEBUG) || defined(INFO)
           cout << "    Other\n";
 #endif
@@ -685,9 +695,11 @@ int main(int32_t argc, char **argv) {
     }
   }
 
-  csv_file.close();
-  if (csv_file.fail()) {
-    cerr << "csv-file close: " << strerror(errno) << "\n";
+  if (!csv_file_path.empty()) {
+    csv_file.close();
+    if (csv_file.fail()) {
+      cerr << "csv-file close: " << strerror(errno) << "\n";
+    }
   }
 
   if (munmap(file_mmap, file_size) < 0) {
