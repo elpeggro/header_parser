@@ -515,14 +515,18 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
     // to the size, set the iterator to the next MP4 box (in the next segment) and start iterating over the H.264
     // headers.
     uint32_t header_block_end = mp4box_it->location_relative + 8;
-    xml_handler.addAttribute("mp4Header",
+    /*xml_handler.addAttribute("mp4Header",
                              std::to_string(header_block_start - curr_segment_start) + "-"
-                                 + std::to_string(header_block_end - curr_segment_start - 1));
+                                 + std::to_string(header_block_end - curr_segment_start - 1));*/
     mp4box_it++;
 
     // H.264 headers
     std::string range_list;
-    // We need to nested while loops, because we multiple NAL units in a single MP4 segment.
+    std::string p_frame_ranges;
+    std::string b_frame_ranges;
+    size_t p_frames_size = 0;
+    size_t b_frames_size = 0;
+    // We need two nested while loops, because we can have multiple NAL units in a single MP4 segment.
     while (nal_unit_it != nal_units.end() && nal_unit_it->location_relative < curr_segment_end) {
       header_block_start = nal_unit_it->location_relative;
       current_block_start = nal_unit_it->location_relative;
@@ -532,12 +536,26 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
         if (nal_unit_it->nal_unit_type == 1 || nal_unit_it->nal_unit_type == 5) {
           if (nal_unit_it->slice_type == 'I') {
             xml_handler.addAttribute("iEnd", std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1));
+          } else if (nal_unit_it->slice_type == 'P') {
+            p_frame_ranges += std::to_string(nal_unit_it->location_relative).append("-").append(
+                std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",");
+            p_frames_size += nal_unit_it->size;
+          } else if (nal_unit_it->slice_type == 'B') {
+            b_frame_ranges += std::to_string(nal_unit_it->location_relative).append("-").append(
+                std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",");
+            b_frames_size += nal_unit_it->size;
           }
           // Slice. Add the 5 byte NAL unit header to the slice header size. Slice header size is byte aligned (by us).
           header_block_end = nal_unit_it->location_relative + 5 + nal_unit_it->slice_header_size;
           nal_unit_it++;
           break;
         } else {
+          // TODO H.264 structures that are not frames (PPS/SPS) that occur after the I-frame are currently prepended to
+          // the P-frame list.
+          p_frame_ranges = std::to_string(nal_unit_it->location_relative).append("-").append(
+              std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",").append(
+              p_frame_ranges);
+          p_frames_size += nal_unit_it->size;
           header_block_end = expected_next_block;
           nal_unit_it++;
           if (nal_unit_it->location_relative != expected_next_block) {
@@ -554,9 +572,15 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
       range_list += std::to_string(header_block_start - curr_segment_start) + "-"
           + std::to_string(header_block_end - curr_segment_start - 1) + ",";
     }
-    // Strip the last comma from the ranges string.
+    // Strip the last comma from the ranges strings.
     range_list = range_list.substr(0, range_list.size() - 1);
-    xml_handler.addAttribute("h264Header", range_list);
+    p_frame_ranges = p_frame_ranges.substr(0, p_frame_ranges.size() - 1);
+    b_frame_ranges = b_frame_ranges.substr(0, b_frame_ranges.size() - 1);
+    //xml_handler.addAttribute("h264Header", range_list);
+    xml_handler.addAttribute("pSize", std::to_string(p_frames_size));
+    xml_handler.addAttribute("bSize", std::to_string(b_frames_size));
+    xml_handler.addAttribute("pFrames", p_frame_ranges);
+    xml_handler.addAttribute("bFrames", b_frame_ranges);
     xml_handler.nextSegment();
   }
   xml_handler.save();
