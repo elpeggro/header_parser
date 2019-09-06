@@ -526,6 +526,7 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
     std::string b_frame_ranges;
     size_t p_frames_size = 0;
     size_t b_frames_size = 0;
+    size_t i_frame_end = 0;
     // We need two nested while loops, because we can have multiple NAL units in a single MP4 segment.
     while (nal_unit_it != nal_units.end() && nal_unit_it->location_relative < curr_segment_end) {
       header_block_start = nal_unit_it->location_relative;
@@ -535,7 +536,8 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
       while (nal_unit_it != nal_units.end()) {
         if (nal_unit_it->nal_unit_type == 1 || nal_unit_it->nal_unit_type == 5) {
           if (nal_unit_it->slice_type == 'I') {
-            xml_handler.addAttribute("iEnd", std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1));
+            i_frame_end = nal_unit_it->location_relative + nal_unit_it->size - 1;
+            xml_handler.addAttribute("iEnd", std::to_string(i_frame_end));
           } else if (nal_unit_it->slice_type == 'P') {
             p_frame_ranges += std::to_string(nal_unit_it->location_relative).append("-").append(
                 std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",");
@@ -550,12 +552,14 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
           nal_unit_it++;
           break;
         } else {
-          // TODO H.264 structures that are not frames (PPS/SPS) that occur after the I-frame are currently prepended to
-          // the P-frame list.
-          p_frame_ranges = std::to_string(nal_unit_it->location_relative).append("-").append(
-              std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",").append(
-              p_frame_ranges);
-          p_frames_size += nal_unit_it->size;
+          if (i_frame_end > 0 && nal_unit_it->location_relative > i_frame_end) {
+            // TODO H.264 structures that are not frames (PPS/SPS) that occur after the I-frame are currently prepended to
+            // the P-frame list.
+            p_frame_ranges = std::to_string(nal_unit_it->location_relative).append("-").append(
+                std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",").append(
+                p_frame_ranges);
+            p_frames_size += nal_unit_it->size;
+          }
           header_block_end = expected_next_block;
           nal_unit_it++;
           if (nal_unit_it->location_relative != expected_next_block) {
