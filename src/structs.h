@@ -16,8 +16,8 @@ typedef struct {
   /// The location of the MP4 box in the current memory mapping.
   const uint8_t *location;
   /// The location of the MP4 box relative to the beginning of the bytestream.
-  uint32_t location_relative;
-  uint32_t size;
+  size_t location_relative;
+  size_t size;
   std::string name;
 } MP4Box;
 
@@ -36,12 +36,12 @@ typedef struct {
   /// The location of the NAL unit in the current memory mapping.
   const uint8_t *location;
   /// The location of the NAL unit relative to the beginning of the bytestream.
-  uint32_t location_relative;
-  uint32_t size;
+  size_t location_relative;
+  size_t size;
   uint8_t nal_ref_idc;
   uint8_t nal_unit_type;
   /// If this NAL unit contains a slice, this value indicates the size of the slice header.
-  uint32_t slice_header_size;
+  size_t slice_header_size;
   /// If this NAL unit contains a slice, this value indicates the slice type.
   char slice_type;
 } NALUnit;

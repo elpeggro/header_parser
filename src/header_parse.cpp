@@ -31,7 +31,7 @@ std::vector<SliceHeader> slices;
 std::ofstream csv_file;
 uint32_t frame_num = 1;
 
-void parseNALUnit(const uint8_t *addr, uint32_t &offset) {
+void parseNALUnit(const uint8_t *addr, size_t &offset) {
 #if defined(DEBUG) || defined(INFO)
   cout << "  NAL\n";
 #endif
@@ -53,7 +53,7 @@ void parseNALUnit(const uint8_t *addr, uint32_t &offset) {
   nal_units.push_back(ret);
 }
 
-void parseSPS(const uint8_t *addr, uint32_t &offset) {
+void parseSPS(const uint8_t *addr, size_t &offset) {
 #if defined(DEBUG) || defined(INFO)
   cout << "    SPS\n";
 #endif
@@ -129,7 +129,7 @@ void parseSPS(const uint8_t *addr, uint32_t &offset) {
   spss.push_back(ret);
 }
 
-void parsePPS(const uint8_t *addr, uint32_t &offset) {
+void parsePPS(const uint8_t *addr, size_t &offset) {
 #if defined(DEBUG) || defined(INFO)
   cout << "    PPS\n";
 #endif
@@ -194,8 +194,8 @@ void parsePPS(const uint8_t *addr, uint32_t &offset) {
   ppss.push_back(ret);
 }
 
-void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
-  uint32_t offset_start = offset;
+void parseSliceHeader(const uint8_t *addr, size_t &offset) {
+  size_t offset_start = offset;
 #ifdef DEBUG
   cout << "    Slice\n";
 #endif
@@ -431,7 +431,7 @@ void parseSliceHeader(const uint8_t *addr, uint32_t &offset) {
 #endif
 }
 
-int32_t parseMP4Box(const uint8_t *addr, uint32_t &offset) {
+int32_t parseMP4Box(const uint8_t *addr, size_t &offset) {
 #if defined(DEBUG) || defined(INFO)
   cout << "MP4\n";
 #endif
@@ -679,7 +679,7 @@ int main(int32_t argc, char **argv) {
     cerr << "madvise: " << strerror(errno) << "\n";
   }
 
-  uint32_t offset = 0;
+  size_t offset = 0;
   while (file_mmap + offset < file_mmap + file_size) {
     int32_t res = parseMP4Box(file_mmap, offset);
     if (res < 0) {

@@ -14,7 +14,7 @@
  * @param bit_offset Bit offset inside byte.
  * @return The read value.
  */
-uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
+uint8_t readBit(const uint8_t *addr, size_t &offset, uint8_t &bit_offset);
 /**
  * Reads a single bit from the position addr + offset + bit_offset. Increments bit_offset. If a byte border is reached,
  * i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0. Additionally, prints a debug message to
@@ -26,7 +26,7 @@ uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
  * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
-uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
+uint8_t readBit(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message);
 /**
  * Reads n bits from the position addr + offset + bit_offset. Increments bit_offset. If a byte border is reached,
  * i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0.
@@ -39,7 +39,7 @@ uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, cons
  * @param n Number of bits to read.
  * @return The read value.
  */
-uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, uint32_t n);
+uint32_t readNBits(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, uint32_t n);
 /**
  * Reads n bits from the position addr + offset + bit_offset. Increments bit_offset. If a byte border is reached,
  * i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0. Additionally, prints a debug message to
@@ -54,7 +54,7 @@ uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, u
  * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
-uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, uint32_t n, const std::string &message);
+uint32_t readNBits(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, uint32_t n, const std::string &message);
 /**
  * Reads a byte from the position addr + offset + bit_offset. Increments offset.
  *
@@ -63,7 +63,7 @@ uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, u
  * @param bit_offset Bit offset inside byte.
  * @return The read value.
  */
-uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
+uint8_t readByte(const uint8_t *addr, size_t &offset, uint8_t &bit_offset);
 /**
  * Reads a byte from the position addr + offset + bit_offset. Increments offset. Additionally, prints a debug message to
  * stdout if DEBUG is defined.
@@ -74,7 +74,7 @@ uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
  * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
-uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
+uint8_t readByte(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message);
 /**
  * Reads four bytes from the position addr + offset + bit_offset and interprets them as a unsigned integer. Increments
  * offset.
@@ -84,7 +84,7 @@ uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, con
  * @param bit_offset Bit offset inside byte.
  * @return The read value as an unsigned integer.
  */
-uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
+uint32_t readUnsignedInt32(const uint8_t *addr, size_t &offset, uint8_t &bit_offset);
 /**
  * Reads four bytes from the position addr + offset + bit_offset and interprets them as a unsigned integer. Increments
  * offset. Additionally, prints a debug message to stdout if DEBUG is defined.
@@ -95,7 +95,7 @@ uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_o
  * @param message Parameter name that is printed together with the read value.
  * @return The read value as an unsigned integer.
  */
-uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
+uint32_t readUnsignedInt32(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message);
 /**
  * Reads a variable number of bits from the position addr + offset + bit_offset as a Exp-Golomb code. Increments
  * bit_offset. If a byte border is reached, i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0
@@ -107,7 +107,7 @@ uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_o
  * @param bit_offset Bit offset inside byte.
  * @return The code number.
  */
-uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
+uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset);
 /**
  * Reads a variable number of bits from the position addr + offset + bit_offset as a Exp-Golomb code. Increments
  * bit_offset. If a byte border is reached, i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0.
@@ -121,7 +121,7 @@ uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t 
  * @param message Parameter name that is printed together with the read value.
  * @return The code number.
  */
-uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
+uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message);
 /**
  * Reads a variable number of bits from the position addr + offset + bit_offset as a Exp-Golomb code. Increments
  * bit_offset. If a byte border is reached, i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0.
@@ -135,7 +135,7 @@ uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t 
  * @param bit_offset Bit offset inside byte.
  * @return The read value.
  */
-int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset);
+int32_t decodeSignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset);
 /**
  * Reads a variable number of bits from the position addr + offset + bit_offset as a Exp-Golomb code. Increments
  * bit_offset. If a byte border is reached, i.e., bit_offset reaches 8, offset is incremented and bit_offset reset to 0.
@@ -150,7 +150,7 @@ int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bi
  * @param message Parameter name that is printed together with the read value.
  * @return The read value.
  */
-int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message);
+int32_t decodeSignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message);
 /**
  * Returns the value of the ChromaArrayType pseudo variable. The variable is derived from the contents of the SPS as
  * follows (taken from the semantic description of the separate_colour_plane_flag field in ISO/IEC 14496-10:2014 Chapter

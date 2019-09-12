@@ -4,7 +4,7 @@
 #include <iostream>
 #include "defines.h"
 
-uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
+uint8_t readBit(const uint8_t *addr, size_t &offset, uint8_t &bit_offset) {
   uint8_t ret = (addr[offset] >> (7 - bit_offset)) & 0x01;
   bit_offset++;
   if (bit_offset == 8) {
@@ -14,7 +14,7 @@ uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
   return ret;
 }
 
-uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message) {
+uint8_t readBit(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message) {
 #ifdef DEBUG
   std::cout << POSITION << message << ": ";
 #endif
@@ -25,7 +25,7 @@ uint8_t readBit(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, cons
   return ret;
 }
 
-uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, uint32_t n) {
+uint32_t readNBits(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, uint32_t n) {
   uint32_t ret = 0;
   assert(n <= 32);
   for (int32_t i = n; i > 0; i--) {
@@ -34,7 +34,7 @@ uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, u
   return ret;
 }
 
-uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, uint32_t n, const std::string &message) {
+uint32_t readNBits(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, uint32_t n, const std::string &message) {
 #ifdef DEBUG
   std::cout << POSITION << message << ": ";
 #endif
@@ -45,7 +45,7 @@ uint32_t readNBits(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, u
   return ret;
 }
 
-uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
+uint8_t readByte(const uint8_t *addr, size_t &offset, uint8_t &bit_offset) {
   uint8_t ret = 0;
   if (bit_offset == 0) {
     ret = addr[offset];
@@ -58,7 +58,7 @@ uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
   return ret;
 }
 
-uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message) {
+uint8_t readByte(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message) {
 #ifdef DEBUG
   std::cout << POSITION << message << ": ";
 #endif
@@ -69,7 +69,7 @@ uint8_t readByte(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, con
   return ret;
 }
 
-uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
+uint32_t readUnsignedInt32(const uint8_t *addr, size_t &offset, uint8_t &bit_offset) {
   uint32_t ret = 0;
   if (bit_offset == 0) {
     for (int32_t i = 4; i > 0; i--) {
@@ -95,7 +95,7 @@ uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_o
   return ret;
 }
 
-uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message) {
+uint32_t readUnsignedInt32(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message) {
 #ifdef DEBUG
   std::cout << POSITION << message << ": ";
 #endif
@@ -106,7 +106,7 @@ uint32_t readUnsignedInt32(const uint8_t *addr, uint32_t &offset, uint8_t &bit_o
   return ret;
 }
 
-uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
+uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset) {
   uint32_t leading_zero_bits = 0;
   uint32_t code_num = 0;
 
@@ -127,7 +127,7 @@ uint32_t decodeUnsignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t 
 }
 
 uint32_t decodeUnsignedExpGolomb(const uint8_t *addr,
-                                 uint32_t &offset,
+                                 size_t &offset,
                                  uint8_t &bit_offset,
                                  const std::string &message) {
 #ifdef DEBUG
@@ -140,7 +140,7 @@ uint32_t decodeUnsignedExpGolomb(const uint8_t *addr,
   return ret;
 }
 
-int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset) {
+int32_t decodeSignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset) {
   uint32_t code_num = decodeUnsignedExpGolomb(addr, offset, bit_offset);
   int32_t syntax_element_value = ceil(((double) code_num) / 2.0);
   if (code_num % 2 == 0) {
@@ -149,7 +149,7 @@ int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bi
   return syntax_element_value;
 }
 
-int32_t decodeSignedExpGolomb(const uint8_t *addr, uint32_t &offset, uint8_t &bit_offset, const std::string &message) {
+int32_t decodeSignedExpGolomb(const uint8_t *addr, size_t &offset, uint8_t &bit_offset, const std::string &message) {
 #ifdef DEBUG
   std::cout << POSITION << message << ": ";
 #endif
