@@ -11,7 +11,8 @@ set(HEADER_PARSER_SRC_FILES
         src/structs.h
         src/helper_functions
         src/defines.h
-        src/XmlHandler)
+        src/XmlHandler
+        src/Frame.h)
 add_executable(header_parser ${HEADER_PARSER_SRC_FILES})
 target_include_directories(header_parser PRIVATE ${LIBXML2_INCLUDE_DIRS} /usr/include/libxml2)
 target_link_libraries(header_parser ${LIBXML2_LIBRARIES})

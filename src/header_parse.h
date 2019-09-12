@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
+#include "Frame.h"
 /**
  * Tries to parse a NAL unit located at addr + offset. Increments the offset in the process. The parsed NAL unit is
  * placed in the nal_units vector.
@@ -49,10 +51,12 @@ int32_t parseMP4Box(const uint8_t *addr, size_t &offset);
  * @param video_name Video name that should be searched for in the MPD's BaseURL element.
  */
 void flushMPDFile(const std::string &file_name, std::string video_name);
+void flushMPDFile(const std::string &file_name, std::string video_name, const std::string &weight_file_prefix);
 
 /**
  * Flushes the structure of the bytestream into a CSV file. The file is created at the same location as the video.
  * @param video_name Path to the video file
  */
 void flushRanges(const std::string &video_name);
+void assignWeights(const std::string &weight_file_prefix, uint32_t segment_no, std::vector<Frame> &frame_list);
 #endif //HEADER_PARSE_H_

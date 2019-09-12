@@ -6,14 +6,15 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <string.h>
+#include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 #include <fstream>
 #include <iomanip>
-#include <fstream>
 #include <cmath>
+#include <algorithm>
 #include "helper_functions.h"
 #include "structs.h"
 #include "defines.h"
@@ -471,6 +472,10 @@ int32_t parseMP4Box(const uint8_t *addr, size_t &offset) {
 }
 
 void flushMPDFile(const std::string &file_name, std::string video_name) {
+  flushMPDFile(file_name, std::move(video_name), "");
+}
+
+void flushMPDFile(const std::string &file_name, std::string video_name, const std::string &weight_file_prefix) {
   // Get filename from path
   size_t last_slash = video_name.find_last_of('/');
   if (last_slash != video_name.size()) {
@@ -489,6 +494,7 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
 #endif
     mp4box_it++;
   }
+  uint32_t segment_no = 1;
   auto nal_unit_it = nal_units.begin();
   // Segments
   while (mp4box_it != mp4_boxes.end()) {
@@ -527,6 +533,7 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
     size_t p_frames_size = 0;
     size_t b_frames_size = 0;
     size_t i_frame_end = 0;
+    std::vector<Frame> frame_list;
     // We need two nested while loops, because we can have multiple NAL units in a single MP4 segment.
     while (nal_unit_it != nal_units.end() && nal_unit_it->location_relative < curr_segment_end) {
       header_block_start = nal_unit_it->location_relative;
@@ -538,14 +545,10 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
           if (nal_unit_it->slice_type == 'I') {
             i_frame_end = nal_unit_it->location_relative + nal_unit_it->size - 1;
             xml_handler.addAttribute("iEnd", std::to_string(i_frame_end));
-          } else if (nal_unit_it->slice_type == 'P') {
-            p_frame_ranges += std::to_string(nal_unit_it->location_relative).append("-").append(
-                std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",");
-            p_frames_size += nal_unit_it->size;
-          } else if (nal_unit_it->slice_type == 'B') {
-            b_frame_ranges += std::to_string(nal_unit_it->location_relative).append("-").append(
-                std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",");
-            b_frames_size += nal_unit_it->size;
+          } else {
+            frame_list.emplace_back(nal_unit_it->slice_type,
+                                    nal_unit_it->location_relative,
+                                    nal_unit_it->location_relative + nal_unit_it->size - 1);
           }
           // Slice. Add the 5 byte NAL unit header to the slice header size. Slice header size is byte aligned (by us).
           header_block_end = nal_unit_it->location_relative + 5 + nal_unit_it->slice_header_size;
@@ -576,6 +579,23 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
       range_list += std::to_string(header_block_start - curr_segment_start) + "-"
           + std::to_string(header_block_end - curr_segment_start - 1) + ",";
     }
+
+    if (!weight_file_prefix.empty()) {
+      assignWeights(weight_file_prefix, segment_no, frame_list);
+    }
+
+    for (auto &frame : frame_list) {
+      if (frame.getType() == 'P') {
+        p_frame_ranges += frame.getRange() + ',';
+        p_frames_size += frame.getSize();
+      } else if (frame.getType() == 'B') {
+        b_frame_ranges += frame.getRange() + ',';
+        b_frames_size += frame.getSize();
+      } else {
+        cerr << "Invalid frame type: " << frame.getType() << "\n";
+      }
+    }
+
     // Strip the last comma from the ranges strings.
     range_list = range_list.substr(0, range_list.size() - 1);
     p_frame_ranges = p_frame_ranges.substr(0, p_frame_ranges.size() - 1);
@@ -586,6 +606,7 @@ void flushMPDFile(const std::string &file_name, std::string video_name) {
     xml_handler.addAttribute("pFrames", p_frame_ranges);
     xml_handler.addAttribute("bFrames", b_frame_ranges);
     xml_handler.nextSegment();
+    segment_no++;
   }
   xml_handler.save();
 }
@@ -621,15 +642,45 @@ void flushRanges(const std::string &video_name) {
   range_file.close();
 }
 
+void assignWeights(const std::string &weight_file_prefix, uint32_t segment_no, std::vector<Frame> &frame_list) {
+#ifdef DEBUG
+  // Start with second frame, because the I-frame is not in the list.
+  uint32_t frame_count = 2;
+#endif
+  std::string weight_file = weight_file_prefix + "-" + std::to_string(segment_no) + ".dat";
+  std::ifstream in(weight_file);
+  if (in.fail()) {
+    cerr << "Failed to open weight file " << weight_file << ": " << strerror(errno) << "\n";
+    return;
+  }
+  auto frame_list_it = frame_list.begin();
+  uint32_t poc;
+  uint32_t weight;
+  // Skip I-Frame weight.
+  in >> poc >> weight;
+  while (in >> poc >> weight) {
+    frame_list_it->setWeight(weight);
+#ifdef DEBUG
+    cout << "segment: " << segment_no << " frame: " << frame_count << " type: " << frame_list_it->getType() << " weight: " << weight << "\n";
+    frame_count++;
+#endif
+    frame_list_it++;
+  }
+  std::sort(frame_list.begin(), frame_list.end());
+}
+
 int main(int32_t argc, char **argv) {
   std::string csv_file_path;
   std::string mpd_file_path;
+  std::string weight_file_prefix;
   bool flush_ranges = false;
   std::string csv_parameter = "--csv";
   std::string mpd_parameter = "--mpd";
   std::string ranges_parameter = "--ranges";
+  std::string weight_parameter = "--weights";
   if (argc < 2) {
-    cout << "usage: " << argv[0] << " <video> [--csv <csv-file>] [--mpd <MPD-File>] [--ranges]" << endl;
+    cout << "usage: " << argv[0]
+         << " <video> [--csv <csv-file>] [--mpd <MPD-File>] [--weights <weight-file-prefix>] [--ranges]" << endl;
     return 1;
   }
   std::string video_file_path = argv[1];
@@ -640,6 +691,9 @@ int main(int32_t argc, char **argv) {
       i++;
     } else if (!next_arg.compare(0, next_arg.size(), mpd_parameter) && i + 1 < argc) {
       mpd_file_path = argv[i + 1];
+      i++;
+    } else if (!next_arg.compare(0, next_arg.size(), weight_parameter) && i + 1 < argc) {
+      weight_file_prefix = argv[i + 1];
       i++;
     } else if (!next_arg.compare(0, next_arg.size(), ranges_parameter)) {
       flush_ranges = true;
@@ -735,7 +789,7 @@ int main(int32_t argc, char **argv) {
   }
 
   if (!mpd_file_path.empty()) {
-    flushMPDFile(mpd_file_path, video_file_path);
+    flushMPDFile(mpd_file_path, video_file_path, weight_file_prefix);
   }
   if (flush_ranges) {
     flushRanges(video_file_path);
