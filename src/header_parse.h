@@ -58,5 +58,9 @@ void flushMPDFile(const std::string &file_name, std::string video_name, const st
  * @param video_name Path to the video file
  */
 void flushRanges(const std::string &video_name);
-void assignWeights(const std::string &weight_file_prefix, uint32_t segment_no, std::vector<Frame> &frame_list);
+void assignWeights(const std::string &weight_file_prefix,
+                   uint32_t segment_no,
+                   std::vector<Frame> &frame_list,
+                   bool skip_i_frame);
+void flushInfoData(const std::string &info_file_prefix, const std::string &weight_file_prefix);
 #endif //HEADER_PARSE_H_

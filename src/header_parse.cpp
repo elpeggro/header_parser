@@ -658,18 +658,68 @@ void assignWeights(const std::string &weight_file_prefix,
   std::sort(frame_list.begin(), frame_list.end());
 }
 
+void writeFrameData(const std::string &file_name, const std::vector<Frame> &frame_list) {
+  std::ofstream frame_file;
+  frame_file.open(file_name, std::ofstream::trunc);
+  if (frame_file.fail()) {
+    cerr << "Failed to open frame file " << file_name << ": " << strerror(errno) << "\n";
+    return;
+  }
+  uint32_t index = 1;
+  for (auto &frame : frame_list) {
+    frame_file << index << " " << frame.getType() << " " << frame.getWeight() << " " << frame.getSize() << "\n";
+    index++;
+  }
+}
+
+void flushInfoData(const std::string &info_file_prefix, const std::string &weight_file_prefix) {
+  std::vector<Frame> frame_list;
+  uint32_t segment_no = 0;
+  for (auto &nal_unit : nal_units) {
+    if (nal_unit.slice_type == 'I') {
+      if (segment_no != 0) {
+        if (!weight_file_prefix.empty()) {
+          assignWeights(weight_file_prefix, segment_no, frame_list, false);
+          std::sort(frame_list.begin(), frame_list.end());
+        }
+        std::string frame_file_name = info_file_prefix + "-" + std::to_string(segment_no) + ".dat";
+        writeFrameData(frame_file_name, frame_list);
+      }
+      segment_no++;
+      frame_list.clear();
+      frame_list.emplace_back(nal_unit.slice_type,
+                              nal_unit.location_relative,
+                              nal_unit.location_relative + nal_unit.size - 1);
+    } else if (nal_unit.slice_type == 'P' || nal_unit.slice_type == 'B') {
+      frame_list.emplace_back(nal_unit.slice_type,
+                              nal_unit.location_relative,
+                              nal_unit.location_relative + nal_unit.size - 1);
+    }
+  }
+  // Flush last segment
+  if (!weight_file_prefix.empty()) {
+    assignWeights(weight_file_prefix, segment_no, frame_list, false);
+    std::sort(frame_list.begin(), frame_list.end());
+  }
+  std::string frame_file_name = info_file_prefix + "-" + std::to_string(segment_no) + ".dat";
+  writeFrameData(frame_file_name, frame_list);
+}
+
 int main(int32_t argc, char **argv) {
   std::string csv_file_path;
   std::string mpd_file_path;
   std::string weight_file_prefix;
+  std::string info_file_prefix;
   bool flush_ranges = false;
   std::string csv_parameter = "--csv";
   std::string mpd_parameter = "--mpd";
   std::string ranges_parameter = "--ranges";
   std::string weight_parameter = "--weights";
+  std::string info_parameter = "--info";
   if (argc < 2) {
     cout << "usage: " << argv[0]
-         << " <video> [--csv <csv-file>] [--mpd <MPD-File>] [--weights <weight-file-prefix>] [--ranges]" << endl;
+         << " <video> [--csv <csv-file>] [--mpd <MPD-File>] [--weights <weight-file-prefix>] [--info <info-data-prefix>] [--ranges]"
+         << endl;
     return 1;
   }
   std::string video_file_path = argv[1];
@@ -683,6 +733,9 @@ int main(int32_t argc, char **argv) {
       i++;
     } else if (!next_arg.compare(0, next_arg.size(), weight_parameter) && i + 1 < argc) {
       weight_file_prefix = argv[i + 1];
+      i++;
+    } else if (!next_arg.compare(0, next_arg.size(), info_parameter) && i + 1 < argc) {
+      info_file_prefix = argv[i + 1];
       i++;
     } else if (!next_arg.compare(0, next_arg.size(), ranges_parameter)) {
       flush_ranges = true;
@@ -779,6 +832,9 @@ int main(int32_t argc, char **argv) {
 
   if (!mpd_file_path.empty()) {
     flushMPDFile(mpd_file_path, video_file_path, weight_file_prefix);
+  }
+  if (!info_file_prefix.empty()) {
+    flushInfoData(info_file_prefix, weight_file_prefix);
   }
   if (flush_ranges) {
     flushRanges(video_file_path);
