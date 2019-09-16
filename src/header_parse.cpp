@@ -528,10 +528,7 @@ void flushMPDFile(const std::string &file_name, std::string video_name, const st
 
     // H.264 headers
     std::string range_list;
-    std::string p_frame_ranges;
-    std::string b_frame_ranges;
-    size_t p_frames_size = 0;
-    size_t b_frames_size = 0;
+    std::string frame_ranges;
     size_t i_frame_end = 0;
     std::vector<Frame> frame_list;
     // We need two nested while loops, because we can have multiple NAL units in a single MP4 segment.
@@ -558,10 +555,9 @@ void flushMPDFile(const std::string &file_name, std::string video_name, const st
           if (i_frame_end > 0 && nal_unit_it->location_relative > i_frame_end) {
             // TODO H.264 structures that are not frames (PPS/SPS) that occur after the I-frame are currently prepended to
             // the P-frame list.
-            p_frame_ranges = std::to_string(nal_unit_it->location_relative).append("-").append(
+            frame_ranges = std::to_string(nal_unit_it->location_relative).append("-").append(
                 std::to_string(nal_unit_it->location_relative + nal_unit_it->size - 1)).append(",").append(
-                p_frame_ranges);
-            p_frames_size += nal_unit_it->size;
+                frame_ranges);
           }
           header_block_end = expected_next_block;
           nal_unit_it++;
@@ -581,30 +577,18 @@ void flushMPDFile(const std::string &file_name, std::string video_name, const st
     }
 
     if (!weight_file_prefix.empty()) {
-      assignWeights(weight_file_prefix, segment_no, frame_list);
+      assignWeights(weight_file_prefix, segment_no, frame_list, true);
     }
 
     for (auto &frame : frame_list) {
-      if (frame.getType() == 'P') {
-        p_frame_ranges += frame.getRange() + ',';
-        p_frames_size += frame.getSize();
-      } else if (frame.getType() == 'B') {
-        b_frame_ranges += frame.getRange() + ',';
-        b_frames_size += frame.getSize();
-      } else {
-        cerr << "Invalid frame type: " << frame.getType() << "\n";
-      }
+      frame_ranges += frame.getRange() + ',';
     }
 
     // Strip the last comma from the ranges strings.
     range_list = range_list.substr(0, range_list.size() - 1);
-    p_frame_ranges = p_frame_ranges.substr(0, p_frame_ranges.size() - 1);
-    b_frame_ranges = b_frame_ranges.substr(0, b_frame_ranges.size() - 1);
+    frame_ranges = frame_ranges.substr(0, frame_ranges.size() - 1);
     //xml_handler.addAttribute("h264Header", range_list);
-    xml_handler.addAttribute("pSize", std::to_string(p_frames_size));
-    xml_handler.addAttribute("bSize", std::to_string(b_frames_size));
-    xml_handler.addAttribute("pFrames", p_frame_ranges);
-    xml_handler.addAttribute("bFrames", b_frame_ranges);
+    xml_handler.addAttribute("frames", frame_ranges);
     xml_handler.nextSegment();
     segment_no++;
   }
@@ -642,7 +626,10 @@ void flushRanges(const std::string &video_name) {
   range_file.close();
 }
 
-void assignWeights(const std::string &weight_file_prefix, uint32_t segment_no, std::vector<Frame> &frame_list) {
+void assignWeights(const std::string &weight_file_prefix,
+                   uint32_t segment_no,
+                   std::vector<Frame> &frame_list,
+                   bool skip_i_frame) {
 #ifdef DEBUG
   // Start with second frame, because the I-frame is not in the list.
   uint32_t frame_count = 2;
@@ -656,8 +643,10 @@ void assignWeights(const std::string &weight_file_prefix, uint32_t segment_no, s
   auto frame_list_it = frame_list.begin();
   uint32_t poc;
   uint32_t weight;
-  // Skip I-Frame weight.
-  in >> poc >> weight;
+  if (skip_i_frame) {
+    // Skip I-Frame weight.
+    in >> poc >> weight;
+  }
   while (in >> poc >> weight) {
     frame_list_it->setWeight(weight);
 #ifdef DEBUG

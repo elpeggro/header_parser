@@ -12,10 +12,18 @@ class Frame {
   Frame(char type_, size_t start_, size_t end_) : type(type_), weight(0), start(start_), end(end_) {};
   void setWeight(uint32_t weight_) { weight = weight_; }
   char getType() const { return type; }
+  uint32_t getWeight() const { return weight; }
   size_t getSize() const { return end - start + 1; }
   std::string getRange() const { return std::to_string(start) + '-' + std::to_string(end); }
   friend bool operator<(const Frame &l, const Frame &r) {
-    return std::tie(l.weight, l.start, l.end) < std::tie(r.weight, r.start, r.end);
+    if (l.weight > r.weight) {
+      return true;
+    } else if (l.weight < r.weight) {
+      return false;
+    } else if (l.start < r.start) {
+      return true;
+    }
+    return false;
   }
  private:
   char type;
