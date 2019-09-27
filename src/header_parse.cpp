@@ -630,10 +630,7 @@ void assignWeights(const std::string &weight_file_prefix,
                    uint32_t segment_no,
                    std::vector<Frame> &frame_list,
                    bool skip_i_frame) {
-#ifdef DEBUG
-  // Start with second frame, because the I-frame is not in the list.
-  uint32_t frame_count = 2;
-#endif
+  size_t frame_count = 0;
   std::string weight_file = weight_file_prefix + "-" + std::to_string(segment_no) + ".dat";
   std::ifstream in(weight_file);
   if (in.fail()) {
@@ -646,14 +643,25 @@ void assignWeights(const std::string &weight_file_prefix,
   if (skip_i_frame) {
     // Skip I-Frame weight.
     in >> poc >> weight;
+    frame_count++;
   }
   while (in >> poc >> weight) {
     frame_list_it->setWeight(weight);
+    frame_count++;
 #ifdef DEBUG
     cout << "segment: " << segment_no << " frame: " << frame_count << " type: " << frame_list_it->getType() << " weight: " << weight << "\n";
-    frame_count++;
 #endif
+    if (frame_list_it == frame_list.end()) {
+      break;
+    }
     frame_list_it++;
+  }
+  if ((skip_i_frame && (frame_count != frame_list.size() - 1))
+      || (!skip_i_frame && (frame_count != frame_list.size()))) {
+    cerr << "Number of frames in weight files and segment does not match. weight file: " << frame_count << " segment: "
+         << frame_list.size() + 1 << "\n";
+    cerr << "In file: " << weight_file << "\n";
+    return;
   }
   std::sort(frame_list.begin(), frame_list.end());
 }
