@@ -696,35 +696,64 @@ void writeFrameData(const std::string &file_name, const std::vector<Frame> &fram
 
 void flushInfoData(const std::string &info_file_prefix, const std::string &weight_file_prefix) {
   std::vector<Frame> frame_list;
-  uint32_t segment_no = 0;
+  uint32_t segment_no = 1;
+  bool last_segment = false;
+  size_t next_segment_start = 0;
+  auto mp4_box_it = mp4_boxes.begin();
+  bool first_found = false;
+  while (mp4_box_it != mp4_boxes.end() && mp4_box_it->name != "sidx") {
+    mp4_box_it++;
+    if (mp4_box_it != mp4_boxes.end() && mp4_box_it->name == "sidx" && !first_found) {
+      first_found = true;
+      mp4_box_it++;
+    }
+  }
+  if (!first_found) {
+    cerr << "Failed to flush info data. No sidx box found.\n";
+    return;
+  } else if (mp4_box_it == mp4_boxes.end()) {
+    // We have found only one sidx box.
+    last_segment = true;
+  } else {
+    // We found two sidx boxes and mp4_box_it points to the second box.
+    next_segment_start = mp4_box_it->location_relative;
+    mp4_box_it++;
+  }
   for (auto &nal_unit : nal_units) {
-    if (nal_unit.slice_type == 'I') {
-      if (segment_no != 0) {
-        if (!weight_file_prefix.empty()) {
-          assignWeights(weight_file_prefix, segment_no, frame_list, false);
-          std::sort(frame_list.begin(), frame_list.end());
-        }
-        std::string frame_file_name = info_file_prefix + "-" + std::to_string(segment_no) + ".dat";
-        writeFrameData(frame_file_name, frame_list);
+    if (!last_segment && nal_unit.location_relative >= next_segment_start) {
+      if (!weight_file_prefix.empty()) {
+        assignWeights(weight_file_prefix, segment_no, frame_list, false);
+        std::sort(frame_list.begin(), frame_list.end());
       }
+      std::string frame_file_name = info_file_prefix + "-" + std::to_string(segment_no) + ".dat";
+      writeFrameData(frame_file_name, frame_list);
       segment_no++;
       frame_list.clear();
-      frame_list.emplace_back(nal_unit.slice_type,
-                              nal_unit.location_relative,
-                              nal_unit.location_relative + nal_unit.size - 1);
-    } else if (nal_unit.slice_type == 'P' || nal_unit.slice_type == 'B') {
+      while (mp4_box_it != mp4_boxes.end() && mp4_box_it->name != "sidx") {
+        mp4_box_it++;
+      }
+      if (mp4_box_it == mp4_boxes.end()) {
+        last_segment = true;
+      } else {
+        next_segment_start = mp4_box_it->location_relative;
+        mp4_box_it++;
+      }
+    }
+    if (nal_unit.slice_type == 'I' || nal_unit.slice_type == 'P' || nal_unit.slice_type == 'B') {
       frame_list.emplace_back(nal_unit.slice_type,
                               nal_unit.location_relative,
                               nal_unit.location_relative + nal_unit.size - 1);
     }
   }
-  // Flush last segment
-  if (!weight_file_prefix.empty()) {
-    assignWeights(weight_file_prefix, segment_no, frame_list, false);
-    std::sort(frame_list.begin(), frame_list.end());
+  if (!frame_list.empty()) {
+    // Flush last segment
+    if (!weight_file_prefix.empty()) {
+      assignWeights(weight_file_prefix, segment_no, frame_list, false);
+      std::sort(frame_list.begin(), frame_list.end());
+    }
+    std::string frame_file_name = info_file_prefix + "-" + std::to_string(segment_no) + ".dat";
+    writeFrameData(frame_file_name, frame_list);
   }
-  std::string frame_file_name = info_file_prefix + "-" + std::to_string(segment_no) + ".dat";
-  writeFrameData(frame_file_name, frame_list);
 }
 
 int main(int32_t argc, char **argv) {
