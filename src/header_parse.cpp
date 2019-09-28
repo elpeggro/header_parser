@@ -213,9 +213,19 @@ void parseSliceHeader(const uint8_t *addr, size_t &offset) {
   std::string slice_type_string = getSliceTypeString(ret.slice_type);
   curr_nal_unit.slice_type = slice_type_string.c_str()[0];
 #ifdef INFO
-  cout << "    " << slice_type_string << " Slice\n";
+  cout << "    " << slice_type_string << " Slice";
+  if (curr_nal_unit.nal_unit_type == 5) {
+    cout << " (IDR)";
+  }
+  cout << "\n";
 #endif
-  csv_file << slice_type_string << "," << frame_num++ << "," << curr_nal_unit.size << "\n";
+  if (csv_file.is_open()) {
+    csv_file << slice_type_string;
+    if (curr_nal_unit.nal_unit_type == 5) {
+      csv_file << "(IDR)";
+    }
+    csv_file << "," << frame_num++ << "," << curr_nal_unit.size << "\n";
+  }
   ret.pic_parameter_set_id = decodeUnsignedExpGolomb(addr, offset, bit_offset, "pic_parameter_set_id");
   if (curr_sps.separate_colour_plane_flag) {
     ret.colour_plane_id = static_cast<uint8_t>(readNBits(addr, offset, bit_offset, 2, "colour_plane_id"));
@@ -459,13 +469,17 @@ int32_t parseMP4Box(const uint8_t *addr, size_t &offset) {
     return -1;
   }
   if (ret.name != "mdat") {
-    csv_file << "H,0," << ret.size << "\n";
+    if (csv_file.is_open()) {
+      csv_file << ret.name << ",0," << ret.size << "\n";
+    }
     // Skip the actual contents of this box
     offset += ret.size - 8;
   } else {
     // The output in the csv for the NAL units only includes their own size, so we need to add the size of the mdat
     // header manually to get a byte count w/o gaps.
-    csv_file << "H,0,8\n";
+    if (csv_file.is_open()) {
+      csv_file << "mdat(header),0,8\n";
+    }
   }
   mp4_boxes.push_back(ret);
   return 0;
@@ -800,23 +814,23 @@ int main(int32_t argc, char **argv) {
         // macro blocks of a slice.
         uint32_t after_offset = offset + last_nal.size - 5;
         if (last_nal.nal_unit_type == 7) {
-          if (!csv_file_path.empty()) {
-            csv_file << "H,0," << last_nal.size << "\n";
+          if (csv_file.is_open()) {
+            csv_file << "SPS,0," << last_nal.size << "\n";
           }
           parseSPS(file_mmap, offset);
 #ifdef DEBUG
           cout << "Skipping " << after_offset - offset << " bytes of vui_parameters()\n";
 #endif
         } else if (last_nal.nal_unit_type == 8) {
-          if (!csv_file_path.empty()) {
-            csv_file << "H,0," << last_nal.size << "\n";
+          if (csv_file.is_open()) {
+            csv_file << "PPS,0," << last_nal.size << "\n";
           }
           parsePPS(file_mmap, offset);
         } else if (last_nal.nal_unit_type == 1 || last_nal.nal_unit_type == 5) {
           parseSliceHeader(file_mmap, offset);
         } else {
-          if (!csv_file_path.empty()) {
-            csv_file << "H,0," << last_nal.size << "\n";
+          if (csv_file.is_open()) {
+            csv_file << getShortNALUnitTypeString(last_nal.nal_unit_type) << ",0," << last_nal.size << "\n";
           }
 #if defined(DEBUG) || defined(INFO)
           cout << "    Other\n";
@@ -827,7 +841,7 @@ int main(int32_t argc, char **argv) {
     }
   }
 
-  if (!csv_file_path.empty()) {
+  if (csv_file.is_open()) {
     csv_file.close();
     if (csv_file.fail()) {
       cerr << "csv-file close: " << strerror(errno) << "\n";
