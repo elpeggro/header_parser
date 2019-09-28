@@ -670,7 +670,7 @@ void assignWeights(const std::string &weight_file_prefix,
     }
     frame_list_it++;
   }
-  if ((skip_i_frame && (frame_count != frame_list.size() - 1))
+  if ((skip_i_frame && (frame_count != frame_list.size() + 1))
       || (!skip_i_frame && (frame_count != frame_list.size()))) {
     cerr << "Number of frames in weight files and segment does not match. weight file: " << frame_count << " segment: "
          << frame_list.size() + 1 << "\n";
